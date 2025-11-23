@@ -195,7 +195,7 @@ PLUGIN_MUSICARTISTINFO_ALBUMS_SMALL_ARTWORK
 	NL	Vind albums met kleine albumhoes
 
 PLUGIN_MUSICARTISTINFO_ARTISTPHOTO_PROGRESS
-	CS	Vyhledávání obrázku interpreta online
+	CS	Vyhledávání obrázků interpreta online
 	DA	Søg efter billede af kunstner
 	DE	Interpretenbilder online suchen
 	EN	Artist Picture Online Lookup
@@ -222,7 +222,7 @@ PLUGIN_MUSICARTISTINFO_BROWSE_ARTISTPHOTOS
 	NL	Foto's van artiesten
 
 PLUGIN_MUSICARTISTINFO_GENRE_REPLACEMENT_PROGRESS
-	CS	Vyhledávání žánru online a jeho nahrazení
+	CS	Vyhledávání žánrů online a jeho nahrazení
 	DA	Søg efter genre online og erstatning
 	DE	Online Stilrichtungen nachschlagen und ersetzen
 	EN	Online Genre Lookup and Replacement
@@ -466,7 +466,7 @@ PLUGIN_MUSICARTISTINFO_ENGLISH_CONTENT_FALLBACK
 	NL	Toon Engelse informatie als jouw taal niet beschikbaar is
 
 PLUGIN_MUSICARTISTINFO_HIDEEXTRAMENUITEMS
-	CS	Skrytí položek menu Bonusy
+	CS	Skrytí položek menu Doplňky
 	DA	Skjul ekstra menupunkter
 	DE	Zusätzliche Menüeinträge ausblenden
 	EN	Hide Extra menu items
@@ -475,7 +475,7 @@ PLUGIN_MUSICARTISTINFO_HIDEEXTRAMENUITEMS
 	NL	Verberg menu items "Extra's"
 
 PLUGIN_MUSICARTISTINFO_HIDEEXTRAMENUITEMS_DESC
-	CS	Skrýt položky typu „Najít alba bez obrázků“ z menu Bonusy
+	CS	Skrýt položky typu „Najít alba bez obrázků“ z menu Doplňky
 	DA	Skjul "Find albums" elementer fra ekstra menuen
 	DE	"Alben ohne Plattenhülle suchen" und ähnliche Einträge aus dem Extras Menü entfernen
 	EN	Hide "Find albums with missing artwork" and similar items from the Extra menu
