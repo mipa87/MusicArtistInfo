@@ -198,7 +198,13 @@ sub _call {
 	$args->{expires} //= '30d';
 	$args->{headers} ||= {};
 	$args->{headers}->{'x-mai-cfg'} ||= _initXMAICfgString();
-	$args->{headers}->{'X-LMS-Plugin-ID'} ||= PLUGIN_PACKAGE;
+
+	if (Slim::Utils::Misc->can('apiHeaders')) {
+		$args->{headers} = { %{$args->{headers}}, Slim::Utils::Misc::apiHeaders(PLUGIN_PACKAGE) };
+	}
+	else {
+		$args->{headers}->{'X-LMS-Plugin-ID'} ||= PLUGIN_PACKAGE;
+	}
 
 	# provide radio station URL to help avoiding unnecessary lookups if a station is known to provide no or invalid metadata
 	if ($args->{radioUrl} && $args->{radioUrl} =~ m{^https?://} && (my $parsed = URI->new(delete $args->{radioUrl}))) {
@@ -251,12 +257,21 @@ sub _initXMAICfgString {
 	$version ||= (main::SCANNER && Slim::Utils::PluginManager->dataForPlugin('Plugins::MusicArtistInfo::Importer')->{version})
 	          || (!main::SCANNER && $Plugins::MusicArtistInfo::Plugin::VERSION) || 'unk';
 
-	my $serverId = 'undef';
+	my $serverId;
 
 	if (!$xMAICfgString && Slim::Utils::PluginManager->isConfiguredEnabled('Analytics')) {
-		# sync with what the analytics plugin does to hash the server ID
-		$serverId = sha1_base64(preferences('server')->get('server_uuid'));
-		$serverId =~ s/\//+/g;
+		eval {
+			require Slim::Plugin::Analytics::Plugin;
+			if (Slim::Plugin::Analytics::Plugin->can('getServerId')) {
+				$serverId = Slim::Plugin::Analytics::Plugin::getServerId();
+			}
+		};
+
+		if (!$serverId) {
+			# sync with what the analytics plugin does to hash the server ID
+			$serverId = sha1_base64(preferences('server')->get('server_uuid'));
+			$serverId =~ s/\//+/g;
+		}
 	}
 
 	return $xMAICfgString ||= sprintf('v:%s,sc:%s,ba:%s,la:%s,ma:%s,ac:%s,pc:%s,si:%s',
@@ -267,7 +282,7 @@ sub _initXMAICfgString {
 		$prefs->get('lookupAlbumArtistPicturesOnly') ? 1 : 0,
 		$prefs->get('artistImageFolder') ? 1 : 0,
 		$serverPrefs->get('precacheArtwork') ? 1 : 0,
-		$serverId,
+		$serverId || 'undef',
 	);
 }
 
