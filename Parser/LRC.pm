@@ -35,7 +35,7 @@ sub strip {
 		# remove some metadata
 		s/\[(?:ar|al|ti|au|length|by|offset|re|ve):.*?\]//g;
 		# remove timestamps
-		s/^\[\d+.*?\]//g unless $keepTimestamps;
+		s/^\[\d+.*?\]\s*//g unless $keepTimestamps;
 		# Enhanced LRC format is an extension of Simple LRC Format developed by the designer of A2 Media Player
 		s/<\d+:\d+\.\d+>//g;
 		$_;
