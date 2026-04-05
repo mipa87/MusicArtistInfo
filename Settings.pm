@@ -17,7 +17,7 @@ sub name {
 sub prefs {
 	my @prefs = ($prefs, qw(runImporter lookupArtistPictures lookupCoverArt reviewFolder artistImageFolder lyricsFolder bioFolder
 		lookupAlbumArtistPicturesOnly saveMissingArtistPicturePlaceholder replaceOnlineGenres useAIGeneratedContent preferredLanguage
-		hidextramenusitems preferLyricsPrecisionOverSpeed));
+		hidextramenusitems));
 
 	# we'll leave the artist picture handling to LMS, if possible
 	push @prefs, 'browseArtistPictures' if !CAN_LMS_ARTIST_ARTWORK;
@@ -31,6 +31,9 @@ sub page {
 
 sub handler {
 	my ($class, $client, $paramRef, $pageSetup) = @_;
+
+	# update the lyrics providers to let users force-refresh the list without restarting LMS...
+	Plugins::MusicArtistInfo::TrackInfo->updateLyricsProviders();
 
 	# artfolder is a server setting - need to handle it manually
 	if ($paramRef->{'saveSettings'}) {

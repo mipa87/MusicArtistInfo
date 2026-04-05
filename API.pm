@@ -18,6 +18,7 @@ use constant TRACKREVIEW_URL => BASE_URL . '/track/%s/%s/review';
 use constant ALBUMGENRES_URL => BASE_URL . '/album/%s/%s/genres';
 use constant BIOGRAPHY_URL => BASE_URL . '/artist/%s/biography';
 use constant WORKREVIEW_URL => BASE_URL . '/work/%s/%s/review';
+use constant LYRICS_PROVIDERS_URL => BASE_URL . '/metadata/lyricsProviders';
 
 use constant PLUGIN_PACKAGE => __PACKAGE__ =~ s/\b(?:\w+)$/Plugin/r;
 
@@ -186,6 +187,24 @@ sub getWorkReviewId {
 	);
 }
 
+sub getLyricsProviders {
+	my ( $class, $cb ) = @_;
+
+	_call(
+		LYRICS_PROVIDERS_URL,
+		sub {
+			my ($result) = @_;
+
+			main::INFOLOG && $log->is_info && $log->info("found lyrics providers: " . Data::Dump::dump($result));
+
+			$cb->($result);
+		},
+		{
+			cache => 0
+		}
+	);
+}
+
 sub hasHitRateLimit {
 	return $hitRateLimit ? 1 : 0;
 }
@@ -220,7 +239,7 @@ sub _call {
 	Plugins::MusicArtistInfo::Common->call($url, sub {
 		my ($result) = @_;
 
-		if ($result && ref $result && $result->{error}) {
+		if ($result && ref $result && ref $result eq 'HASH' && $result->{error}) {
 			my $error = delete $result->{error};
 			$log->error("API call to $url failed: $error");
 

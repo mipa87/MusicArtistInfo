@@ -151,6 +151,7 @@ sub __call {
 	my $url = shift;
 
 	if (_useLRCProxy()) {
+		require Plugins::MusicArtistInfo::API;
 		Plugins::MusicArtistInfo::API::_call(BASE_URL_PROXIED . $url, @_);
 	}
 	else {

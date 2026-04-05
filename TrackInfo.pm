@@ -13,11 +13,21 @@ use Slim::Utils::Log;
 use Slim::Utils::Misc;
 use Slim::Utils::Prefs;
 
+use Plugins::MusicArtistInfo::API;
 use Plugins::MusicArtistInfo::Common qw(CLICOMMAND);
 use Plugins::MusicArtistInfo::Parser::LRC;
 
 my $log = logger('plugin.musicartistinfo');
 my $prefs = preferences('plugin.musicartistinfo');
+
+my $lyricsProviderPipeline = [
+	# 'AZLyrics',
+	'LRCLibGet',
+	'LRCLibSearch',
+	'ChartLyrics',
+	'Genius',
+	'GeniusNoDot',
+];
 
 sub init {
 #                                                                |requires Client
@@ -31,6 +41,8 @@ sub init {
 		func => \&_objInfoHandler,
 		after => 'moreartistinfo',
 	) );
+
+	Slim::Utils::Timers::setTimer(__PACKAGE__, time() + rand(5), \&updateLyricsProviders);
 }
 
 sub _objInfoHandler {
@@ -223,6 +235,44 @@ sub getLyrics {
 	}
 }
 
+my $lyricsProvider = {
+	AZLyrics => sub {
+		require Plugins::MusicArtistInfo::Lyrics::AZLyrics;
+		Plugins::MusicArtistInfo::Lyrics::AZLyrics->getLyrics(@_);
+	},
+	LRCLibGet => sub {
+		require Plugins::MusicArtistInfo::Lyrics::LRCLib;
+		Plugins::MusicArtistInfo::Lyrics::LRCLib->getLyrics(@_)
+	},
+	LRCLibSearch => sub {
+		require Plugins::MusicArtistInfo::Lyrics::LRCLib;
+		Plugins::MusicArtistInfo::Lyrics::LRCLib->searchLyrics(@_)
+	},
+	ChartLyrics => sub {
+		require Plugins::MusicArtistInfo::Lyrics::ChartLyrics;
+		Plugins::MusicArtistInfo::Lyrics::ChartLyrics->searchLyricsInDirect(@_);
+	},
+	Genius => sub {
+		require Plugins::MusicArtistInfo::Lyrics::Genius;
+		Plugins::MusicArtistInfo::Lyrics::Genius->getLyrics(@_);
+	},
+	GeniusNoDot => sub {
+		my ($args, $scb) = @_;
+
+		if ($args->{title} !~ /\./ && $args->{artist} !~ /\./) {
+			return $scb->();
+		}
+		else {
+			require Plugins::MusicArtistInfo::Lyrics::Genius;
+			# try one more time with punctuation removed - https://github.com/michaelherger/MusicArtistInfo/issues/12
+			$args->{artist} =~ s/\.//g;
+			$args->{title}  =~ s/\.//g;
+
+			Plugins::MusicArtistInfo::Lyrics::Genius->getLyrics($args, $scb);
+		}
+	}
+};
+
 sub _fetchLyrics {
 	my ($args, $cb, $ecb) = @_;
 
@@ -240,47 +290,8 @@ sub _fetchLyrics {
 	my $lyricsResult;
 
 	my $handlerPipeline = [
-		sub {
-			require Plugins::MusicArtistInfo::Lyrics::AZLyrics;
-			Plugins::MusicArtistInfo::Lyrics::AZLyrics->getLyrics($args, $_[0]);
-		},
-		sub {
-			require Plugins::MusicArtistInfo::Lyrics::LRCLib;
-			Plugins::MusicArtistInfo::Lyrics::LRCLib->getLyrics($args, $_[0])
-		},
-		sub {
-			require Plugins::MusicArtistInfo::Lyrics::LRCLib;
-			Plugins::MusicArtistInfo::Lyrics::LRCLib->searchLyrics($args, $_[0])
-		},
-		sub {
-			require Plugins::MusicArtistInfo::Lyrics::ChartLyrics;
-			Plugins::MusicArtistInfo::Lyrics::ChartLyrics->searchLyricsInDirect($args, $_[0]);
-		},
-		sub {
-			require Plugins::MusicArtistInfo::Lyrics::Genius;
-			Plugins::MusicArtistInfo::Lyrics::Genius->getLyrics($args, $_[0]);
-		},
-		sub {
-			my ($scb) = @_;
-
-			if ($args->{title} !~ /\./ && $args->{artist} !~ /\./) {
-				$scb->($lyricsResult);
-			}
-			else {
-				require Plugins::MusicArtistInfo::Lyrics::Genius;
-				# try one more time with punctuation removed - https://github.com/michaelherger/MusicArtistInfo/issues/12
-				$args->{artist} =~ s/\.//g;
-				$args->{title}  =~ s/\.//g;
-
-				Plugins::MusicArtistInfo::Lyrics::Genius->getLyrics($args, $scb);
-			}
-		}
+		map { $lyricsProvider->{$_} } @{$prefs->get('lyricsProviders') || $lyricsProviderPipeline}
 	];
-
-	if ($prefs->get('preferLyricsPrecisionOverSpeed')) {
-		# move slow LRCLib requests to later in the queue
-		splice @$handlerPipeline, 2, 0, shift @$handlerPipeline;
-	}
 
 	Async::Util::amap(
 		inputs => $handlerPipeline,
@@ -292,7 +303,7 @@ sub _fetchLyrics {
 				return;
 			}
 
-			$handler->(sub {
+			$handler->($args, sub {
 				my $result = shift;
 
 				if ($result && ref $result && keys %$result && !$result->{error}) {
@@ -447,24 +458,6 @@ sub _getLocalLyrics {
 	return $lyrics;
 }
 
-# TODO - is this ever being called?...
-# sub _renderLyrics {
-# 	my ($item, $args) = @_;
-# 	$item ||= {};
-# 	$args ||= {};
-
-# 	my $title  = $args->{title} || $item->{song};
-# 	my $artist = $args->{artist} || $item->{artist};
-
-# 	my $lyrics = $title if $title;
-# 	$lyrics .= ' - ' if $lyrics && $artist;
-# 	$lyrics .= $artist if $artist;
-# 	$lyrics .= "\n\n" if $lyrics;
-# 	$lyrics .= $item->{lyrics} if $item->{lyrics};
-
-# 	return $lyrics;
-# }
-
 sub _renderLyricsResponse {
 	my ($lyrics, $request, $args) = @_;
 
@@ -482,5 +475,26 @@ sub _renderLyricsResponse {
 	$request->addResult('title', $args->{title}) if $args->{title};
 	$request->addResult('artist', $args->{artist}) if $args->{artist};
 }
+
+sub updateLyricsProviders {
+	my ($class) = @_;
+
+	Slim::Utils::Timers::killTimers($class, \&updateLyricsProviders);
+
+	Plugins::MusicArtistInfo::API->getLyricsProviders(sub {
+		my $result = shift;
+
+		if ($result && ref $result && ref $result eq 'HASH' && $result->{lyricsProviders} && ref $result->{lyricsProviders} eq 'ARRAY') {
+			my @lyricsProviders = Slim::Utils::Misc::uniq(grep {
+				$lyricsProvider->{$_};
+			} @{$result->{lyricsProviders}});
+
+			$prefs->set('lyricsProviders', \@lyricsProviders) if @lyricsProviders;
+		}
+
+		Slim::Utils::Timers::setTimer($class, time() + 23*3600 + rand(3600), \&updateLyricsProviders);
+	});
+}
+
 
 1;
