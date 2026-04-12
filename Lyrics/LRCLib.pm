@@ -130,11 +130,7 @@ sub _call {
 
 			if (!_useLRCProxy() && Time::HiRes::time() - $startTime > MAX_LAG_BEFORE_PROXYING) {
 				main::INFOLOG && $log->is_info && $log->info("LRCLib is taking a long time to respond - enabling proxying");
-				$useLRCProxy = 1;
-
-				# but don't proxy forever...
-				Slim::Utils::Timers::killTimers(__PACKAGE__, \&_resetProxying);
-				Slim::Utils::Timers::setTimer(__PACKAGE__, time() + PROXYING_PERIOD, \&_resetProxying);
+				__PACKAGE__->enableProxying();
 			}
 
 			$cb->($result);
@@ -157,6 +153,15 @@ sub __call {
 	else {
 		Plugins::MusicArtistInfo::Common->call(BASE_URL . $url, @_);
 	}
+}
+
+sub enableProxying {
+	my $class = shift;
+	$useLRCProxy = 1;
+
+	# but don't proxy forever...
+	Slim::Utils::Timers::killTimers($class, \&_resetProxying);
+	Slim::Utils::Timers::setTimer($class, time() + PROXYING_PERIOD, \&_resetProxying);
 }
 
 sub _resetProxying {

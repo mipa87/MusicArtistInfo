@@ -240,6 +240,13 @@ my $lyricsProvider = {
 		require Plugins::MusicArtistInfo::Lyrics::AZLyrics;
 		Plugins::MusicArtistInfo::Lyrics::AZLyrics->getLyrics(@_);
 	},
+	# no lookup, only tell LRCLib to use the proxy
+	LRCLibProxyEnable => sub {
+		my ($args, $scb) = @_;
+		require Plugins::MusicArtistInfo::Lyrics::LRCLib;
+		Plugins::MusicArtistInfo::Lyrics::LRCLib->enableProxying();
+		$scb->();
+	},
 	LRCLibGet => sub {
 		require Plugins::MusicArtistInfo::Lyrics::LRCLib;
 		Plugins::MusicArtistInfo::Lyrics::LRCLib->getLyrics(@_)
@@ -290,7 +297,9 @@ sub _fetchLyrics {
 	my $lyricsResult;
 
 	my $handlerPipeline = [
-		map { $lyricsProvider->{$_} } @{$prefs->get('lyricsProviders') || $lyricsProviderPipeline}
+		grep { $_ }
+		map { $lyricsProvider->{$_} }
+		@{$prefs->get('lyricsProviders') || $lyricsProviderPipeline}
 	];
 
 	Async::Util::amap(
